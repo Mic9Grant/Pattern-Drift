@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drift Lab — Geometric Illusion Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#15121c;
+    --panel:#1c1826;
+    --panel-2:#241f30;
+    --line:#332b44;
+    --ink:#ece7f3;
+    --ink-dim:#a79fb8;
+    --ink-faint:#6f6783;
+    --accent:#e8a44c;
+    --accent-soft:#3a2e1d;
+    --display:"Space Grotesk", system-ui, sans-serif;
+    --mono:"Space Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--display);
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;
+    min-height:100vh;
+  }
+
+  /* ---- top bar ---- */
+  header{
+    display:flex;align-items:baseline;justify-content:space-between;
+    gap:16px;padding:18px 26px;border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:baseline;gap:14px;}
+  .brand h1{
+    font-size:19px;font-weight:700;letter-spacing:-.01em;margin:0;
+  }
+  .brand .dot{color:var(--accent);}
+  .brand .tag{
+    font-family:var(--mono);font-size:11px;color:var(--ink-faint);
+    text-transform:uppercase;letter-spacing:.16em;
+  }
+  .export-btn{
+    font-family:var(--mono);font-size:12px;font-weight:700;
+    letter-spacing:.08em;text-transform:uppercase;
+    background:var(--accent);color:#1a1206;border:none;
+    padding:11px 18px;border-radius:7px;cursor:pointer;
+    transition:transform .12s ease, filter .12s ease;
+  }
+  .export-btn:hover{filter:brightness(1.08);}
+  .export-btn:active{transform:translateY(1px);}
+
+  /* ---- layout ---- */
+  main{
+    flex:1;display:grid;grid-template-columns:340px 1fr;min-height:0;
+  }
+  .controls{
+    border-right:1px solid var(--line);
+    padding:22px 22px 40px;overflow-y:auto;
+    background:linear-gradient(180deg,var(--panel),var(--bg));
+  }
+  .stage{
+    display:flex;align-items:center;justify-content:center;
+    padding:34px;position:relative;
+    background:
+      radial-gradient(120% 120% at 50% 0%, #1f1a2b 0%, var(--bg) 70%);
+  }
+  .canvas-wrap{
+    position:relative;width:100%;max-width:660px;aspect-ratio:1/1;
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    box-shadow:0 28px 80px -30px #000, inset 0 0 0 1px #0003;
+  }
+  canvas{display:block;width:100%;height:100%;}
+
+  /* ---- control groups ---- */
+  .group{margin-bottom:24px;}
+  .group-label{
+    font-family:var(--mono);font-size:10px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.18em;color:var(--ink-faint);
+    margin:0 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);
+  }
+
+  .field{margin-bottom:15px;}
+  .field-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin-bottom:7px;
+  }
+  .field-head label{font-size:13px;color:var(--ink-dim);}
+  .field-head .val{
+    font-family:var(--mono);font-size:12px;color:var(--accent);
+    font-weight:700;
+  }
+
+  select{
+    width:100%;font-family:var(--display);font-size:13px;
+    color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:7px;
+    padding:10px 12px;cursor:pointer;appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23a79fb8' stroke-width='1.4' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;
+  }
+  select:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:4px;
+    background:var(--line);border-radius:3px;cursor:pointer;outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:16px;height:16px;
+    border-radius:50%;background:var(--accent);border:2px solid var(--bg);
+    box-shadow:0 0 0 1px var(--accent);transition:transform .1s ease;
+  }
+  input[type=range]::-webkit-slider-thumb:active{transform:scale(1.25);}
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;border-radius:50%;background:var(--accent);
+    border:2px solid var(--bg);box-shadow:0 0 0 1px var(--accent);
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:6px;}
+
+  /* toggle */
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .toggle label{font-size:13px;color:var(--ink-dim);}
+  .switch{
+    position:relative;width:42px;height:23px;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:20px;cursor:pointer;
+    transition:background .15s ease;flex:none;
+  }
+  .switch::after{
+    content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;
+    border-radius:50%;background:var(--ink-faint);transition:.16s ease;
+  }
+  .switch[aria-checked=true]{background:var(--accent-soft);border-color:var(--accent);}
+  .switch[aria-checked=true]::after{transform:translateX(19px);background:var(--accent);}
+  .switch:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  /* button grids */
+  .btn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .btn-grid.three{grid-template-columns:repeat(3,1fr);}
+  .tbtn{
+    font-family:var(--display);font-size:12.5px;color:var(--ink);
+    background:var(--panel-2);border:1px solid var(--line);
+    border-radius:7px;padding:10px 6px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:6px;
+    transition:border-color .12s ease, background .12s ease, transform .1s ease;
+  }
+  .tbtn:hover{border-color:var(--accent);color:var(--ink);}
+  .tbtn:active{transform:translateY(1px);}
+  .tbtn[aria-pressed=true]{
+    background:var(--accent-soft);border-color:var(--accent);color:var(--accent);
+  }
+  .tbtn svg{width:15px;height:15px;flex:none;}
+
+  .random-btn{
+    width:100%;font-family:var(--mono);font-size:13px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--ink);
+    background:linear-gradient(180deg,var(--panel-2),#1f1a2b);
+    border:1px solid var(--accent);border-radius:8px;padding:13px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;
+    transition:filter .12s ease, transform .1s ease;
+  }
+  .random-btn:hover{filter:brightness(1.15);}
+  .random-btn:active{transform:translateY(1px);}
+  .random-btn svg{width:16px;height:16px;}
+
+  .hint{
+    font-size:12px;line-height:1.5;color:var(--ink-faint);
+    margin:2px 0 0;
+  }
+
+  /* hex fields */
+  .hex-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .hex-tag{font-size:12px;color:var(--ink-dim);width:78px;flex:none;}
+  .hex-pick{
+    width:30px;height:30px;padding:0;flex:none;cursor:pointer;
+    border:1px solid var(--line);border-radius:6px;background:var(--panel-2);
+  }
+  .hex-pick::-webkit-color-swatch-wrapper{padding:3px;}
+  .hex-pick::-webkit-color-swatch{border:none;border-radius:4px;}
+  .hex-pick::-moz-color-swatch{border:none;border-radius:4px;}
+  .hex-text{
+    flex:1;min-width:0;font-family:var(--mono);font-size:12.5px;
+    color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:6px;padding:8px 10px;
+  }
+  .hex-text:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+  .hex-text.bad{border-color:#e0556b;}
+
+  /* json box */
+  .json-box{
+    width:100%;height:118px;resize:vertical;
+    font-family:var(--mono);font-size:12px;line-height:1.5;
+    color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:8px;
+    padding:11px 12px;margin-bottom:8px;
+  }
+  .json-box:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+
+  @media (max-width:860px){
+    main{grid-template-columns:1fr;}
+    .controls{border-right:none;border-bottom:1px solid var(--line);order:2;}
+    .stage{order:1;padding:22px;}
+    .canvas-wrap{max-width:520px;}
+  }
+
+  /* ---- settings sheet ---- */
+  .overlay{
+    position:fixed;inset:0;z-index:50;display:none;
+    align-items:flex-start;justify-content:center;
+    background:rgba(8,7,12,.72);backdrop-filter:blur(3px);
+    padding:40px 20px;overflow-y:auto;
+  }
+  .overlay.open{display:flex;}
+  .sheet{
+    width:100%;max-width:560px;background:#fbfaf6;color:#1a1820;
+    border-radius:12px;overflow:hidden;
+    box-shadow:0 40px 100px -30px #000;
+    font-family:var(--display);
+  }
+  .sheet-head{
+    display:flex;justify-content:space-between;gap:18px;
+    padding:26px 28px 20px;border-bottom:2px solid #1a1820;
+  }
+  .sheet-eyebrow{
+    font-family:var(--mono);font-size:10px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.18em;color:#9a7b3e;margin:0 0 6px;
+  }
+  .sheet-title{font-size:24px;font-weight:700;margin:0;letter-spacing:-.01em;}
+  .sheet-time{font-family:var(--mono);font-size:11px;color:#6f6783;margin:6px 0 0;}
+  .sheet-thumb{
+    width:96px;height:96px;flex:none;border-radius:8px;
+    border:1px solid #d9d4c8;object-fit:cover;background:#eee;
+  }
+  .sheet-body{padding:8px 28px 24px;}
+  .spec-section{margin-top:18px;}
+  .spec-section h3{
+    font-family:var(--mono);font-size:10px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.16em;color:#9a7b3e;
+    margin:0 0 4px;padding-bottom:6px;border-bottom:1px solid #e2ddd0;
+  }
+  .spec-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:8px 0;border-bottom:1px solid #efece2;font-size:14px;
+  }
+  .spec-row:last-child{border-bottom:none;}
+  .spec-row .k{color:#5a5566;}
+  .spec-row .v{font-family:var(--mono);font-weight:700;color:#1a1820;}
+  .swatches{display:flex;gap:6px;align-items:center;}
+  .swatch{
+    width:16px;height:16px;border-radius:3px;border:1px solid #00000022;
+  }
+  .swatch-hex{font-family:var(--mono);font-size:11px;color:#6f6783;margin-left:4px;}
+  .sheet-foot{
+    display:flex;justify-content:flex-end;gap:10px;
+    padding:18px 28px;border-top:1px solid #e2ddd0;background:#f3f0e8;
+  }
+  .sheet-foot .tbtn{background:#fff;color:#1a1820;border-color:#cfc9ba;}
+  .sheet-foot .tbtn:hover{border-color:#9a7b3e;color:#1a1820;}
+
+  /* ---- print ---- */
+  @media print{
+    @page{margin:16mm;}
+    body{background:#fff;}
+    body * {visibility:hidden;}
+    #printSheet, #printSheet *{visibility:visible;}
+    .overlay{
+      position:static;display:block;background:none;backdrop-filter:none;
+      padding:0;overflow:visible;
+    }
+    .sheet{box-shadow:none;max-width:none;border-radius:0;}
+    .no-print{display:none !important;}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>Drift Lab<span class="dot">.</span></h1>
+      <span class="tag">geometric peripheral-drift generator</span>
+    </div>
+    <button class="export-btn" id="exportBtn">↓ Save PNG</button>
+  </header>
+
+  <main>
+    <aside class="controls">
+      <!-- getting started -->
+      <div class="group">
+        <p class="group-label">Getting started</p>
+        <div class="field">
+          <div class="field-head"><label for="preset">Preset</label></div>
+          <select id="preset"></select>
+          <p class="hint">Pick a starting point, then bend every dial below to make it yours.</p>
+        </div>
+      </div>
+
+      <!-- form -->
+      <div class="group">
+        <p class="group-label">Shape &amp; color</p>
+        <div class="field">
+          <div class="field-head"><label for="shape">Tile shape</label></div>
+          <select id="shape"></select>
+        </div>
+        <div class="field" id="uploadRow" hidden>
+          <input type="file" id="svgFile" accept=".svg,.png,.jpg,.jpeg,image/svg+xml,image/png,image/jpeg" style="display:none">
+          <button class="tbtn" id="svgBtn" style="width:100%;">⬆ Upload shape (SVG / PNG / JPG)</button>
+          <p class="hint" id="svgStatus">SVG uses its outline directly. PNG/JPG is traced to a silhouette — transparent PNGs use their alpha; flat images use the shape against the corner background. Bold, solid shapes work best.</p>
+
+          <div style="height:1px;background:var(--line);margin:16px 0 12px;"></div>
+          <div class="field-head"><label for="genFamily">Generate geometric SVG</label></div>
+          <select id="genFamily">
+            <option value="random">Random / surprise me</option>
+            <option value="star">Star</option>
+            <option value="sunburst">Sunburst</option>
+            <option value="gear">Gear / cog</option>
+            <option value="flower">Flower</option>
+            <option value="blob">Blob</option>
+            <option value="polygram">Polygram</option>
+            <option value="cross">Cross</option>
+          </select>
+          <div class="field" style="margin:10px 0;">
+            <div class="field-head"><label for="genPoints">Points / teeth</label><span class="val" id="genPointsV">8</span></div>
+            <input type="range" id="genPoints" min="3" max="24" step="1" value="8">
+          </div>
+          <div class="field" style="margin-bottom:12px;">
+            <div class="field-head"><label for="genDepth">Depth</label><span class="val" id="genDepthV">45%</span></div>
+            <input type="range" id="genDepth" min="5" max="95" step="1" value="45">
+          </div>
+          <div class="btn-grid">
+            <button class="tbtn" id="genSave">Save .svg</button>
+            <button class="tbtn" id="genBtn" style="background:var(--accent-soft);border-color:var(--accent);color:var(--accent);">✦ Generate</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="palette">Luminance ramp</label></div>
+          <select id="palette"></select>
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="bg">Background</label></div>
+          <select id="bg"></select>
+        </div>
+        <div class="field toggle">
+          <label for="counter">Counter-rotate neighbours</label>
+          <div class="switch" id="counter" role="switch" tabindex="0" aria-checked="true"></div>
+        </div>
+      </div>
+
+      <!-- custom colors -->
+      <div class="group">
+        <p class="group-label">Custom colors</p>
+        <div class="hex-row"><span class="hex-tag">Tone 1</span><input type="color" id="pick0" class="hex-pick"><input type="text" id="hex0" class="hex-text" spellcheck="false"></div>
+        <div class="hex-row"><span class="hex-tag">Tone 2</span><input type="color" id="pick1" class="hex-pick"><input type="text" id="hex1" class="hex-text" spellcheck="false"></div>
+        <div class="hex-row"><span class="hex-tag">Tone 3</span><input type="color" id="pick2" class="hex-pick"><input type="text" id="hex2" class="hex-text" spellcheck="false"></div>
+        <div class="hex-row"><span class="hex-tag">Tone 4</span><input type="color" id="pick3" class="hex-pick"><input type="text" id="hex3" class="hex-text" spellcheck="false"></div>
+        <div class="hex-row"><span class="hex-tag">Background</span><input type="color" id="pickBg" class="hex-pick"><input type="text" id="hexBg" class="hex-text" spellcheck="false"></div>
+        <p class="hint">Type a hex (e.g. #1e40af) or use the swatch. Tones run dark → mid → light → mid for the strongest drift.</p>
+      </div>
+
+      <!-- structure -->
+      <div class="group">
+        <p class="group-label">Structure</p>
+        <div class="field">
+          <div class="field-head"><label for="grid">Grid density</label><span class="val" id="gridV"></span></div>
+          <input type="range" id="grid" min="1" max="12" step="1">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="rings">Nested rings</label><span class="val" id="ringsV"></span></div>
+          <input type="range" id="rings" min="3" max="26" step="1">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="twist">Twist / ring</label><span class="val" id="twistV"></span></div>
+          <input type="range" id="twist" min="-30" max="30" step="0.5">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="gap">Tile gap</label><span class="val" id="gapV"></span></div>
+          <input type="range" id="gap" min="0" max="40" step="1">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="edge">Edge stroke</label><span class="val" id="edgeV"></span></div>
+          <input type="range" id="edge" min="0" max="4" step="0.5">
+        </div>
+      </div>
+
+      <!-- transform -->
+      <div class="group">
+        <p class="group-label">Transform</p>
+        <div class="field">
+          <div class="field-head"><label for="rot">Rotation</label><span class="val" id="rotV"></span></div>
+          <input type="range" id="rot" min="0" max="360" step="1">
+        </div>
+        <div class="field">
+          <div class="field-head"><label for="scale">Scale</label><span class="val" id="scaleV"></span></div>
+          <input type="range" id="scale" min="40" max="160" step="1">
+        </div>
+        <div class="btn-grid three" style="margin-bottom:8px;">
+          <button class="tbtn" id="shrink" title="Shrink">– Shrink</button>
+          <button class="tbtn" id="grow" title="Grow">+ Grow</button>
+          <button class="tbtn" id="rot90" title="Rotate 90°">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7"/><path d="M21 4v4h-4"/></svg>90°
+          </button>
+        </div>
+        <div class="btn-grid">
+          <button class="tbtn" id="flipH" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M16 7l4 5-4 5"/><path d="M8 7l-4 5 4 5"/></svg>Flip H
+          </button>
+          <button class="tbtn" id="flipV" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M7 8l5-4 5 4"/><path d="M7 16l5 4 5-4"/></svg>Flip V
+          </button>
+        </div>
+      </div>
+
+      <!-- actions -->
+      <div class="group" style="margin-bottom:8px;">
+        <button class="random-btn" id="randomBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/><path d="M21 16v5h-5"/><path d="M14 14l7 7"/><path d="M3 8V3h5"/><path d="M10 10L3 3"/></svg>
+          Randomize
+        </button>
+        <button class="tbtn" id="reset" style="width:100%;margin-top:8px;">Reset to preset</button>
+        <button class="tbtn" id="printBtn" style="width:100%;margin-top:8px;">⎙ Print settings</button>
+      </div>
+
+      <!-- json import -->
+      <div class="group">
+        <p class="group-label">JSON import</p>
+        <textarea id="jsonInput" class="json-box" spellcheck="false" placeholder="Paste a settings JSON here, then press Run…"></textarea>
+        <div class="btn-grid">
+          <button class="tbtn" id="jsonCopy">Copy current</button>
+          <button class="tbtn" id="jsonRun" style="background:var(--accent-soft);border-color:var(--accent);color:var(--accent);">▶ Run</button>
+        </div>
+        <p class="hint" id="jsonStatus">Paste the JSON from a printed spec, then Run to rebuild it.</p>
+      </div>
+    </aside>
+
+    <section class="stage">
+      <div class="canvas-wrap">
+        <canvas id="cv" width="1080" height="1080"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <!-- settings sheet -->
+  <div class="overlay" id="overlay" aria-hidden="true">
+    <div class="sheet" id="printSheet" role="dialog" aria-label="Panel settings" aria-modal="true">
+      <div class="sheet-head">
+        <div>
+          <p class="sheet-eyebrow">Drift Lab — design specification</p>
+          <h2 class="sheet-title" id="sheetTitle">Settings</h2>
+          <p class="sheet-time" id="sheetTime"></p>
+        </div>
+        <img class="sheet-thumb" id="sheetThumb" alt="Design preview">
+      </div>
+
+      <div class="sheet-body" id="sheetBody"></div>
+
+      <div class="sheet-foot no-print">
+        <button class="tbtn" id="closeSheet">Close</button>
+        <button class="export-btn" id="doPrint">⎙ Print / Save PDF</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const TAU = Math.PI*2, D2R = Math.PI/180;
+
+/* ---------- data ---------- */
+// shapes: sides, star flag, base angle offset (deg)
+const SHAPES = {
+  triangle:{label:"Triangle",  sides:3, star:false, base:-90},
+  square:  {label:"Square",    sides:4, star:false, base:45},
+  diamond: {label:"Diamond",   sides:4, star:false, base:0},
+  pentagon:{label:"Pentagon",  sides:5, star:false, base:-90},
+  hexagon: {label:"Hexagon",   sides:6, star:false, base:0},
+  octagon: {label:"Octagon",   sides:8, star:false, base:22.5},
+  star5:   {label:"5-pt Star", sides:5, star:true,  base:-90, inner:0.46},
+  burst8:  {label:"8-pt Burst",sides:8, star:true,  base:0,   inner:0.55},
+  custom:  {label:"Custom (upload SVG)", custom:true, base:0},
+};
+
+// palettes: 4 tones in luminance order  dark -> mid -> white -> mid
+const PALETTES = {
+  cobalt:  {label:"Cobalt / Amber",   c:["#0b0b10","#1e40af","#ffffff","#f59e0b"]},
+  magenta: {label:"Magenta / Lime",   c:["#0b0b10","#be185d","#ffffff","#84cc16"]},
+  teal:    {label:"Teal / Coral",     c:["#0b0b10","#0f766e","#ffffff","#fb7185"]},
+  royal:   {label:"Violet / Gold",    c:["#0b0b10","#6d28d9","#ffffff","#fbbf24"]},
+  crimson: {label:"Crimson / Cyan",   c:["#0b0b10","#be123c","#ffffff","#22d3ee"]},
+  ember:   {label:"Navy / Ember",     c:["#10173a","#ff6a00","#ffffff","#1e3a8a"]},
+  mono:    {label:"Monochrome",       c:["#0b0b10","#525252","#ffffff","#a3a3a3"]},
+  custom:  {label:"Custom",           c:["#0b0b10","#1e40af","#ffffff","#f59e0b"]},
+};
+
+const BACKGROUNDS = {
+  slate:   {label:"Slate",    c:"#3b3744"},
+  charcoal:{label:"Charcoal", c:"#1a1820"},
+  olive:   {label:"Olive",    c:"#6b5d2e"},
+  ink:     {label:"Ink black",c:"#08080b"},
+  paper:   {label:"Paper",    c:"#ece7da"},
+  custom:  {label:"Custom",   c:"#3b3744"},
+};
+
+const PRESETS = {
+  turbines:{label:"Square Turbines", shape:"square",  palette:"cobalt", bg:"slate",   grid:5, rings:13, twist:14,  gap:6,  edge:1,   rot:0,  scale:100, counter:true},
+  vortex:  {label:"Triangle Vortex", shape:"triangle",palette:"magenta",bg:"charcoal",grid:4, rings:15, twist:-18, gap:4,  edge:0.5, rot:0,  scale:108, counter:true},
+  hexspin: {label:"Hex Spin",        shape:"hexagon", palette:"teal",   bg:"slate",   grid:6, rings:10, twist:11,  gap:8,  edge:1,   rot:0,  scale:100, counter:true},
+  pinwheel:{label:"Pentagon Pinwheels",shape:"pentagon",palette:"royal",bg:"ink",     grid:5, rings:12, twist:16,  gap:5,  edge:0.5, rot:0,  scale:104, counter:true},
+  shards:  {label:"Star Shards",     shape:"star5",   palette:"royal",  bg:"ink",     grid:4, rings:16, twist:9,   gap:3,  edge:0,   rot:0,  scale:112, counter:false},
+  drift:   {label:"Octagon Drift",   shape:"octagon", palette:"ember",  bg:"charcoal",grid:7, rings:9,  twist:-12, gap:7,  edge:1,   rot:0,  scale:98,  counter:true},
+  lattice: {label:"Diamond Lattice", shape:"diamond", palette:"crimson",bg:"slate",   grid:8, rings:8,  twist:20,  gap:6,  edge:1.5, rot:0,  scale:100, counter:true},
+  burst:   {label:"Hyper Burst",     shape:"burst8",  palette:"mono",   bg:"ink",     grid:3, rings:20, twist:7,   gap:2,  edge:0,   rot:0,  scale:120, counter:false},
+};
+
+/* ---------- state ---------- */
+let S = {};
+let customShape = null;  // {type, path/base, k, ox/oy or w/h, rule, name}
+let lastGenerated = null; // {d, rule} for Save .svg
+function loadPreset(key){
+  const p = PRESETS[key];
+  S = {shape:p.shape, palette:p.palette, bg:p.bg, grid:p.grid, rings:p.rings,
+       twist:p.twist, gap:p.gap, edge:p.edge, rot:p.rot, scale:p.scale,
+       counter:p.counter, flipH:false, flipV:false};
+  syncUI();
+  if(document.getElementById("hex0")) syncHexFields();
+  draw();
+}
+
+/* ---------- dom ---------- */
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+
+function fillSelect(el, obj, withVal){
+  el.innerHTML = Object.entries(obj)
+    .map(([k,v])=>`<option value="${k}">${withVal?v.label:v}</option>`).join("");
+}
+fillSelect($("preset"), PRESETS, true);
+fillSelect($("shape"), SHAPES, true);
+fillSelect($("palette"), PALETTES, true);
+fillSelect($("bg"), BACKGROUNDS, true);
+
+/* ---------- drawing ---------- */
+function polyPath(cx, cy, radius, sh, rotRad){
+  const n = sh.sides, inner = sh.inner || 0.5;
+  ctx.beginPath();
+  if(sh.star){
+    const pts = n*2;
+    for(let i=0;i<pts;i++){
+      const r = (i%2===0) ? radius : radius*inner;
+      const a = rotRad + i*(TAU/pts);
+      const x = cx + r*Math.cos(a), y = cy + r*Math.sin(a);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+  } else {
+    for(let i=0;i<n;i++){
+      const a = rotRad + i*(TAU/n);
+      const x = cx + radius*Math.cos(a), y = cy + radius*Math.sin(a);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+  }
+  ctx.closePath();
+}
+
+function drawCell(cx, cy, maxR, twistDir){
+  const sh = SHAPES[S.shape];
+  const pal = currentRamp();
+  const baseRad = sh.base * D2R;
+  const stroke = S.edge;
+  const bgc = currentBg();
+  const cs = (sh.custom && customShape) ? customShape : null;
+  const fallback = (sh.custom && !customShape) ? SHAPES.square : sh;
+  for(let r=0; r<S.rings; r++){
+    const radius = maxR * (1 - r/S.rings);
+    if(radius <= 0.5) break;
+    const rot = baseRad + twistDir * r * S.twist * D2R;
+    const col = pal[r % pal.length];
+    if(cs && cs.type === "raster"){
+      const sc = radius * cs.k, tint = rasterTint(cs, col);
+      ctx.save();
+      ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(sc, sc);
+      ctx.translate(-cs.w/2, -cs.h/2);
+      ctx.drawImage(tint, 0, 0, cs.w, cs.h);
+      ctx.restore();
+    } else if(cs){
+      const sc = radius * cs.k;
+      ctx.save();
+      ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(sc, sc);
+      ctx.translate(-cs.ox, -cs.oy);
+      ctx.fillStyle = col; ctx.fill(cs.path, cs.rule || "nonzero");
+      if(stroke > 0){ ctx.lineWidth = stroke / sc; ctx.strokeStyle = bgc; ctx.stroke(cs.path); }
+      ctx.restore();
+    } else {
+      polyPath(cx, cy, radius, fallback, rot);
+      ctx.fillStyle = col; ctx.fill();
+      if(stroke > 0){ ctx.lineWidth = stroke; ctx.strokeStyle = bgc; ctx.stroke(); }
+    }
+  }
+}
+
+function draw(){
+  const W = cv.width, H = cv.height;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle = BACKGROUNDS[S.bg].c;
+  ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  ctx.translate(W/2, H/2);
+  ctx.rotate(S.rot * D2R);
+  ctx.scale(S.flipH?-1:1, S.flipV?-1:1);
+  const z = S.scale/100;
+  ctx.scale(z, z);
+  ctx.translate(-W/2, -H/2);
+
+  const n = S.grid;
+  const cellW = W/n, cellH = H/n;
+  const half = Math.min(cellW, cellH)/2;
+  for(let row=0; row<n; row++){
+    for(let col=0; col<n; col++){
+      const cx = col*cellW + cellW/2;
+      const cy = row*cellH + cellH/2;
+      const twistDir = S.counter ? (((row+col)%2)?-1:1) : 1;
+      drawCell(cx, cy, Math.max(half - S.gap, 4), twistDir);
+    }
+  }
+  ctx.restore();
+}
+
+/* ---------- ui sync ---------- */
+function syncUI(){
+  $("shape").value = S.shape;
+  $("palette").value = S.palette;
+  $("bg").value = S.bg;
+  $("grid").value = S.grid;     $("gridV").textContent = S.grid+"×"+S.grid;
+  $("rings").value = S.rings;   $("ringsV").textContent = S.rings;
+  $("twist").value = S.twist;   $("twistV").textContent = S.twist+"°";
+  $("gap").value = S.gap;       $("gapV").textContent = S.gap+"px";
+  $("edge").value = S.edge;     $("edgeV").textContent = S.edge+"px";
+  $("rot").value = S.rot;       $("rotV").textContent = S.rot+"°";
+  $("scale").value = S.scale;   $("scaleV").textContent = (S.scale/100).toFixed(2)+"×";
+  $("counter").setAttribute("aria-checked", S.counter);
+  $("flipH").setAttribute("aria-pressed", S.flipH);
+  $("flipV").setAttribute("aria-pressed", S.flipV);
+  if(typeof updateUploadRow === "function") updateUploadRow();
+}
+
+/* ---------- bindings ---------- */
+$("preset").addEventListener("change", e => loadPreset(e.target.value));
+
+function bindSelect(id, key){ $(id).addEventListener("change", e=>{ S[key]=e.target.value; syncHexFields(); draw(); }); }
+bindSelect("shape","shape"); bindSelect("palette","palette"); bindSelect("bg","bg");
+
+function bindRange(id, key, fmt){
+  $(id).addEventListener("input", e=>{
+    S[key] = parseFloat(e.target.value);
+    $(id+"V").textContent = fmt(S[key]);
+    draw();
+  });
+}
+bindRange("grid","grid", v=>v+"×"+v);
+bindRange("rings","rings", v=>v);
+bindRange("twist","twist", v=>v+"°");
+bindRange("gap","gap", v=>v+"px");
+bindRange("edge","edge", v=>v+"px");
+bindRange("rot","rot", v=>v+"°");
+bindRange("scale","scale", v=>(v/100).toFixed(2)+"×");
+
+function toggleSwitch(){ S.counter = !S.counter; $("counter").setAttribute("aria-checked",S.counter); draw(); }
+$("counter").addEventListener("click", toggleSwitch);
+$("counter").addEventListener("keydown", e=>{ if(e.key===" "||e.key==="Enter"){e.preventDefault();toggleSwitch();} });
+
+$("flipH").addEventListener("click", ()=>{ S.flipH=!S.flipH; $("flipH").setAttribute("aria-pressed",S.flipH); draw(); });
+$("flipV").addEventListener("click", ()=>{ S.flipV=!S.flipV; $("flipV").setAttribute("aria-pressed",S.flipV); draw(); });
+
+function setScale(v){ S.scale = Math.min(160, Math.max(40, v)); $("scale").value=S.scale; $("scaleV").textContent=(S.scale/100).toFixed(2)+"×"; draw(); }
+$("grow").addEventListener("click", ()=> setScale(S.scale+8));
+$("shrink").addEventListener("click", ()=> setScale(S.scale-8));
+$("rot90").addEventListener("click", ()=>{ S.rot=(S.rot+90)%360; $("rot").value=S.rot; $("rotV").textContent=S.rot+"°"; draw(); });
+
+$("reset").addEventListener("click", ()=> loadPreset($("preset").value));
+
+/* ---------- random ---------- */
+const keys = o => Object.keys(o);
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const randInt = (a,b)=> a + Math.floor(Math.random()*(b-a+1));
+
+$("randomBtn").addEventListener("click", ()=>{
+  S = {
+    shape: pick(keys(SHAPES).filter(k=>k!=="custom")),
+    palette: pick(keys(PALETTES)),
+    bg: pick(keys(BACKGROUNDS)),
+    grid: randInt(2,9),
+    rings: randInt(7,22),
+    twist: (randInt(-28,28)*2)/2,
+    gap: randInt(0,12),
+    edge: pick([0,0.5,1,1.5]),
+    rot: randInt(0,11)*30,
+    scale: randInt(90,125),
+    counter: Math.random()>0.35,
+    flipH: Math.random()>0.7,
+    flipV: Math.random()>0.7,
+  };
+  syncUI();
+  syncHexFields();
+  draw();
+});
+
+/* ---------- export ---------- */
+$("exportBtn").addEventListener("click", ()=>{
+  cv.toBlob(blob=>{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+    a.href = url; a.download = `drift-lab-${S.shape}-${stamp}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }, "image/png");
+});
+
+/* ---------- custom colors + json ---------- */
+const isHex = v => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test((v||"").trim());
+const clampN = (v,a,b)=> Math.min(b, Math.max(a, v));
+const finite = v => Number.isFinite(+v);
+function to6(hex){
+  hex=(hex||"").trim();
+  if(/^#[0-9a-fA-F]{3}$/.test(hex)) return "#"+hex.slice(1).split("").map(c=>c+c).join("");
+  return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#000000";
+}
+function currentRamp(){ return PALETTES[S.palette].c.slice(); }
+function currentBg(){ return BACKGROUNDS[S.bg].c; }
+
+function syncHexFields(){
+  const ramp = currentRamp();
+  for(let i=0;i<4;i++){
+    const t=$("hex"+i), p=$("pick"+i);
+    if(t){ t.value = ramp[i]; t.classList.remove("bad"); }
+    if(p){ p.value = to6(ramp[i]); }
+  }
+  $("hexBg").value = currentBg(); $("hexBg").classList.remove("bad");
+  $("pickBg").value = to6(currentBg());
+}
+
+function applyRampColor(i, value){
+  const field = $("hex"+i);
+  if(!isHex(value)){ field.classList.add("bad"); return; }
+  const base = currentRamp(); base[i] = value.trim();
+  PALETTES.custom.c = base;
+  S.palette = "custom"; $("palette").value = "custom";
+  syncHexFields(); draw();
+}
+function applyBgColor(value){
+  if(!isHex(value)){ $("hexBg").classList.add("bad"); return; }
+  BACKGROUNDS.custom.c = value.trim();
+  S.bg = "custom"; $("bg").value = "custom";
+  syncHexFields(); draw();
+}
+for(let i=0;i<4;i++){
+  $("hex"+i).addEventListener("change", e=> applyRampColor(i, e.target.value));
+  $("pick"+i).addEventListener("input", e=> applyRampColor(i, e.target.value));
+}
+$("hexBg").addEventListener("change", e=> applyBgColor(e.target.value));
+$("pickBg").addEventListener("input", e=> applyBgColor(e.target.value));
+
+function exportState(){
+  return {
+    shape:S.shape, palette:S.palette, bg:S.bg,
+    grid:S.grid, rings:S.rings, twist:S.twist, gap:S.gap, edge:S.edge,
+    rot:S.rot, scale:S.scale, counter:S.counter, flipH:S.flipH, flipV:S.flipV,
+    ramp: currentRamp(), bgHex: currentBg()
+  };
+}
+function importState(obj){
+  if(!obj || typeof obj!=="object" || Array.isArray(obj)) throw new Error("expected a settings object");
+  if(Array.isArray(obj.ramp) && obj.ramp.length===4 && obj.ramp.every(isHex))
+    PALETTES.custom.c = obj.ramp.map(h=>h.trim());
+  if(typeof obj.bgHex==="string" && isHex(obj.bgHex))
+    BACKGROUNDS.custom.c = obj.bgHex.trim();
+  if(typeof obj.shape==="string" && SHAPES[obj.shape]) S.shape = obj.shape;
+  S.palette = (obj.palette && PALETTES[obj.palette]) ? obj.palette : (obj.ramp ? "custom" : S.palette);
+  S.bg = (obj.bg && BACKGROUNDS[obj.bg]) ? obj.bg : (obj.bgHex ? "custom" : S.bg);
+  if(finite(obj.grid))  S.grid  = clampN(Math.round(+obj.grid),1,12);
+  if(finite(obj.rings)) S.rings = clampN(Math.round(+obj.rings),3,26);
+  if(finite(obj.twist)) S.twist = clampN(+obj.twist,-30,30);
+  if(finite(obj.gap))   S.gap   = clampN(Math.round(+obj.gap),0,40);
+  if(finite(obj.edge))  S.edge  = clampN(+obj.edge,0,4);
+  if(finite(obj.rot))   S.rot   = clampN(Math.round(+obj.rot),0,360);
+  if(finite(obj.scale)) S.scale = clampN(Math.round(+obj.scale),40,160);
+  if(typeof obj.counter==="boolean") S.counter = obj.counter;
+  if(typeof obj.flipH==="boolean")   S.flipH   = obj.flipH;
+  if(typeof obj.flipV==="boolean")   S.flipV   = obj.flipV;
+  syncUI(); syncHexFields(); draw();
+}
+
+function setJsonStatus(msg, bad){
+  const el=$("jsonStatus"); el.textContent=msg;
+  el.style.color = bad ? "#e0808f" : "var(--accent)";
+}
+$("jsonRun").addEventListener("click", ()=>{
+  const raw = $("jsonInput").value.trim();
+  if(!raw){ setJsonStatus("Paste some JSON into the box first.", true); return; }
+  try{
+    importState(JSON.parse(raw));
+    setJsonStatus("Loaded ✓ — controls updated to match.", false);
+  }catch(err){
+    setJsonStatus("Couldn't read that: "+err.message, true);
+  }
+});
+$("jsonCopy").addEventListener("click", ()=>{
+  const txt = JSON.stringify(exportState(), null, 2);
+  $("jsonInput").value = txt;
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).catch(()=>{});
+  setJsonStatus("Current settings copied into the box.", false);
+});
+
+/* ---------- custom shape upload ---------- */
+function updateUploadRow(){
+  const row = $("uploadRow");
+  if(row) row.hidden = ($("shape").value !== "custom");
+}
+function setSvgStatus(msg, bad){
+  const el = $("svgStatus");
+  el.textContent = msg;
+  el.style.color = bad ? "#e0808f" : "var(--accent)";
+}
+function pointsToD(str){
+  const n = (str||"").trim().split(/[\s,]+/).map(Number).filter(v=>!isNaN(v));
+  let d = "";
+  for(let i=0; i+1<n.length; i+=2) d += (i===0?"M":"L") + n[i] + "," + n[i+1] + " ";
+  return d ? d+"Z" : "";
+}
+function elemToD(el){
+  const t = el.tagName.toLowerCase();
+  const a = name => parseFloat(el.getAttribute(name)) || 0;
+  if(t==="path")     return el.getAttribute("d") || "";
+  if(t==="polygon" || t==="polyline") return pointsToD(el.getAttribute("points"));
+  if(t==="rect"){ const x=a("x"),y=a("y"),w=a("width"),h=a("height"); return `M${x},${y} H${x+w} V${y+h} H${x} Z`; }
+  if(t==="circle"){ const cx=a("cx"),cy=a("cy"),r=a("r"); return `M${cx-r},${cy} a${r},${r} 0 1,0 ${2*r},0 a${r},${r} 0 1,0 ${-2*r},0 Z`; }
+  if(t==="ellipse"){ const cx=a("cx"),cy=a("cy"),rx=a("rx"),ry=a("ry"); return `M${cx-rx},${cy} a${rx},${ry} 0 1,0 ${2*rx},0 a${rx},${ry} 0 1,0 ${-2*rx},0 Z`; }
+  return "";
+}
+function measureD(d){
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("style", "position:absolute;left:-9999px;top:-9999px;width:10px;height:10px;visibility:hidden");
+  const p = document.createElementNS(NS, "path");
+  p.setAttribute("d", d);
+  svg.appendChild(p);
+  document.body.appendChild(svg);
+  let bb;
+  try { bb = p.getBBox(); } finally { document.body.removeChild(svg); }
+  return bb;
+}
+function loadCustomSVG(text){
+  const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+  if(doc.querySelector("parsererror")) throw new Error("not a valid SVG file");
+  const svg = doc.querySelector("svg");
+  if(!svg) throw new Error("no <svg> element found");
+  const el = svg.querySelector("path,polygon,polyline,rect,circle,ellipse");
+  if(!el) throw new Error("no path/polygon/rect/circle inside");
+  const d = elemToD(el);
+  if(!d || !d.trim()) throw new Error("couldn't read the outline");
+  const bb = measureD(d);
+  if(!bb || (bb.width === 0 && bb.height === 0)) throw new Error("shape has no measurable area");
+  customShape = {
+    type: "vector",
+    path: new Path2D(d),
+    rule: "nonzero",
+    k: 1 / (0.5 * Math.max(bb.width, bb.height)),
+    ox: bb.x + bb.width/2,
+    oy: bb.y + bb.height/2,
+    name: ""
+  };
+  return customShape;
+}
+/* trace a PNG/JPG silhouette into a transparent white mask, cropped to its bounds */
+function buildRasterMask(img){
+  const MAX = 400;
+  let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  if(!w || !h) throw new Error("image has no size");
+  const fit = Math.min(1, MAX / Math.max(w, h));
+  w = Math.max(1, Math.round(w * fit));
+  h = Math.max(1, Math.round(h * fit));
+
+  const src = document.createElement("canvas");
+  src.width = w; src.height = h;
+  const sg = src.getContext("2d", { willReadFrequently: true });
+  sg.drawImage(img, 0, 0, w, h);
+  const data = sg.getImageData(0, 0, w, h).data;
+
+  // decide masking strategy: alpha channel vs luminance/colour distance
+  let transparent = 0;
+  for(let i = 3; i < data.length; i += 4) if(data[i] < 250) transparent++;
+  const useAlpha = transparent > (w * h) * 0.02;
+
+  const corner = (x, y) => { const o = (y*w + x)*4; return [data[o], data[o+1], data[o+2]]; };
+  const cs4 = [corner(0,0), corner(w-1,0), corner(0,h-1), corner(w-1,h-1)];
+  const bg = [0,1,2].map(k => Math.round(cs4.reduce((s,c)=>s+c[k],0)/4));
+  const TH = 72;
+
+  const out = document.createElement("canvas");
+  out.width = w; out.height = h;
+  const og = out.getContext("2d");
+  const od = og.createImageData(w, h), p = od.data;
+  let minX=w, minY=h, maxX=-1, maxY=-1, any=false;
+  for(let y=0; y<h; y++) for(let x=0; x<w; x++){
+    const o = (y*w + x)*4;
+    let inside, alpha = 255;
+    if(useAlpha){ inside = data[o+3] > 40; alpha = data[o+3]; }
+    else {
+      const dr=data[o]-bg[0], dg=data[o+1]-bg[1], db=data[o+2]-bg[2];
+      inside = Math.sqrt(dr*dr+dg*dg+db*db) > TH;
+    }
+    if(inside){
+      p[o]=255; p[o+1]=255; p[o+2]=255; p[o+3]=alpha;
+      if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; any=true;
+    } else { p[o+3]=0; }
+  }
+  if(!any) throw new Error("no silhouette found (image looks blank or fully transparent)");
+  og.putImageData(od, 0, 0);
+
+  const bw = maxX-minX+1, bh = maxY-minY+1;
+  const crop = document.createElement("canvas");
+  crop.width = bw; crop.height = bh;
+  crop.getContext("2d").drawImage(out, minX, minY, bw, bh, 0, 0, bw, bh);
+  return { canvas: crop, w: bw, h: bh };
+}
+/* per-colour tinted copy of the raster silhouette, cached on the shape */
+function rasterTint(cs, hex){
+  if(cs.tints[hex]) return cs.tints[hex];
+  const t = document.createElement("canvas");
+  t.width = cs.w; t.height = cs.h;
+  const g = t.getContext("2d");
+  g.drawImage(cs.base, 0, 0);
+  g.globalCompositeOperation = "source-in";
+  g.fillStyle = hex; g.fillRect(0, 0, cs.w, cs.h);
+  cs.tints[hex] = t;
+  return t;
+}
+function afterShapeLoaded(name){
+  S.shape = "custom"; $("shape").value = "custom"; updateUploadRow();
+  setSvgStatus("Loaded: " + name, false);
+  draw();
+}
+$("svgBtn").addEventListener("click", ()=> $("svgFile").click());
+$("svgFile").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const isSVG = /svg/i.test(file.type) || /\.svg$/i.test(file.name);
+  const reader = new FileReader();
+  if(isSVG){
+    reader.onload = ()=>{
+      try{ loadCustomSVG(String(reader.result)); customShape.name = file.name; afterShapeLoaded(file.name); }
+      catch(err){ setSvgStatus("Couldn't use that SVG — " + err.message, true); }
+    };
+    reader.onerror = ()=> setSvgStatus("Couldn't read the file.", true);
+    reader.readAsText(file);
+  } else {
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        try{
+          const m = buildRasterMask(img);
+          customShape = { type:"raster", base:m.canvas, w:m.w, h:m.h,
+            k: 1/(0.5*Math.max(m.w, m.h)), tints:{}, name:file.name };
+          afterShapeLoaded(file.name);
+        }catch(err){ setSvgStatus("Couldn't trace that image — " + err.message, true); }
+      };
+      img.onerror = ()=> setSvgStatus("Couldn't load the image.", true);
+      img.src = String(reader.result);
+    };
+    reader.onerror = ()=> setSvgStatus("Couldn't read the file.", true);
+    reader.readAsDataURL(file);
+  }
+  e.target.value = "";
+});
+$("shape").addEventListener("change", updateUploadRow);
+
+/* ---------- procedural SVG shape generator ---------- */
+const GEN_R = 100;
+function gFmt(n){ return Math.round(n*100)/100; }
+function gP(ang, r){ return [r*Math.cos(ang), r*Math.sin(ang)]; }
+function gPoly(pts){
+  let d = "M" + gFmt(pts[0][0]) + "," + gFmt(pts[0][1]);
+  for(let i=1;i<pts.length;i++) d += " L" + gFmt(pts[i][0]) + "," + gFmt(pts[i][1]);
+  return d + " Z";
+}
+function gCircle(cx, cy, r){
+  return `M${gFmt(cx-r)},${gFmt(cy)} a${gFmt(r)},${gFmt(r)} 0 1,0 ${gFmt(2*r)},0 a${gFmt(r)},${gFmt(r)} 0 1,0 ${gFmt(-2*r)},0 Z`;
+}
+function gGcd(a,b){ return b ? gGcd(b, a%b) : a; }
+
+function genStar(n, depth){
+  const pts = [], start = -Math.PI/2, inner = GEN_R * Math.max(0.08, Math.min(0.92, depth));
+  for(let i=0;i<n*2;i++){ const a = start + i*Math.PI/n; pts.push(gP(a, i%2 ? inner : GEN_R)); }
+  return { d: gPoly(pts), rule:"nonzero" };
+}
+function genGear(n, depth){
+  const s = 2*Math.PI/n, start = -Math.PI/2, tip = GEN_R, root = GEN_R*(1 - 0.42*depth), tw = 0.5, pts = [];
+  for(let i=0;i<n;i++){
+    const a = start + i*s;
+    pts.push(gP(a, root));
+    pts.push(gP(a + s*0.5*(1-tw), root));
+    pts.push(gP(a + s*0.5*(1-tw), tip));
+    pts.push(gP(a + s*0.5*(1+tw), tip));
+    pts.push(gP(a + s*0.5*(1+tw), root));
+  }
+  return { d: gPoly(pts) + " " + gCircle(0, 0, GEN_R*0.26), rule:"evenodd" };
+}
+function genFlower(n, depth){
+  const s = 2*Math.PI/n, start = -Math.PI/2, base = GEN_R*Math.max(0.2, depth), ctrl = GEN_R*1.18;
+  let d = "";
+  for(let i=0;i<n;i++){
+    const a0 = start + i*s, a1 = start + (i+1)*s, am = (a0+a1)/2;
+    const p0 = gP(a0, base), cp = gP(am, ctrl), p1 = gP(a1, base);
+    if(i===0) d = "M" + gFmt(p0[0]) + "," + gFmt(p0[1]);
+    d += " Q" + gFmt(cp[0]) + "," + gFmt(cp[1]) + " " + gFmt(p1[0]) + "," + gFmt(p1[1]);
+  }
+  return { d: d + " Z", rule:"nonzero" };
+}
+function genBlob(n, depth, rnd){
+  const start = -Math.PI/2, pts = [];
+  for(let i=0;i<n;i++){
+    const a = start + i*(2*Math.PI/n), rr = GEN_R*(1 - depth*0.5 + rnd()*depth);
+    pts.push([rr*Math.cos(a), rr*Math.sin(a)]);
+  }
+  let d = "M" + gFmt(pts[0][0]) + "," + gFmt(pts[0][1]);
+  for(let i=0;i<n;i++){
+    const p0 = pts[(i-1+n)%n], p1 = pts[i], p2 = pts[(i+1)%n], p3 = pts[(i+2)%n];
+    const c1 = [p1[0] + (p2[0]-p0[0])/6, p1[1] + (p2[1]-p0[1])/6];
+    const c2 = [p2[0] - (p3[0]-p1[0])/6, p2[1] - (p3[1]-p1[1])/6];
+    d += " C" + gFmt(c1[0]) + "," + gFmt(c1[1]) + " " + gFmt(c2[0]) + "," + gFmt(c2[1]) + " " + gFmt(p2[0]) + "," + gFmt(p2[1]);
+  }
+  return { d: d + " Z", rule:"nonzero" };
+}
+function genPolygram(n, depth){
+  if(n < 5) return genStar(n, Math.max(0.3, depth));
+  let k = Math.max(2, Math.round(depth*(n/2)));
+  while(k >= 2 && gGcd(n, k) !== 1) k--;
+  if(k < 2) return genStar(n, 0.45);
+  const pts = [], start = -Math.PI/2; let idx = 0;
+  for(let st=0; st<n; st++){ const a = start + idx*(2*Math.PI/n); pts.push(gP(a, GEN_R)); idx = (idx+k)%n; }
+  return { d: gPoly(pts), rule:"evenodd" };
+}
+function genCross(depth){
+  const t = GEN_R*Math.min(0.7, Math.max(0.18, depth)), o = GEN_R;
+  const pts = [[-t,-o],[t,-o],[t,-t],[o,-t],[o,t],[t,t],[t,o],[-t,o],[-t,t],[-o,t],[-o,-t],[-t,-t]];
+  return { d: gPoly(pts), rule:"nonzero" };
+}
+
+function setVectorShape(d, rule, name){
+  const bb = measureD(d);
+  if(!bb || (bb.width === 0 && bb.height === 0)) throw new Error("generated an empty shape");
+  customShape = {
+    type:"vector", path:new Path2D(d), rule: rule || "nonzero",
+    k: 1/(0.5*Math.max(bb.width, bb.height)),
+    ox: bb.x + bb.width/2, oy: bb.y + bb.height/2, name
+  };
+  lastGenerated = { d, rule: rule || "nonzero" };
+}
+/* ===== extended geometric shape library (100 shapes) ===== */
+const R = GEN_R;
+const D2 = Math.PI/180;
+function gBand(pts, ht){
+  const n=pts.length, top=[], bot=[];
+  for(let i=0;i<n;i++){
+    const p=pts[i], a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)];
+    let dx=b[0]-a[0], dy=b[1]-a[1]; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+    top.push([p[0]-dy*ht, p[1]+dx*ht]); bot.push([p[0]+dy*ht, p[1]-dx*ht]);
+  }
+  return gPoly(top.concat(bot.reverse()));
+}
+function gEllipse(cx,cy,rx,ry){ return `M${gFmt(cx-rx)},${gFmt(cy)} a${gFmt(rx)},${gFmt(ry)} 0 1,0 ${gFmt(2*rx)},0 a${gFmt(rx)},${gFmt(ry)} 0 1,0 ${gFmt(-2*rx)},0 Z`; }
+function gRectC(w,h){ return gPoly([[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]]); }
+function gRoundRect(x,y,w,h,rr){ rr=Math.min(rr,w/2,h/2);
+  return `M${gFmt(x+rr)},${gFmt(y)} H${gFmt(x+w-rr)} A${gFmt(rr)},${gFmt(rr)} 0 0 1 ${gFmt(x+w)},${gFmt(y+rr)} V${gFmt(y+h-rr)} A${gFmt(rr)},${gFmt(rr)} 0 0 1 ${gFmt(x+w-rr)},${gFmt(y+h)} H${gFmt(x+rr)} A${gFmt(rr)},${gFmt(rr)} 0 0 1 ${gFmt(x)},${gFmt(y+h-rr)} V${gFmt(y+rr)} A${gFmt(rr)},${gFmt(rr)} 0 0 1 ${gFmt(x+rr)},${gFmt(y)} Z`; }
+function gRegN(n,r,rotDeg){ const rot=(rotDeg==null?-90:rotDeg)*D2, pts=[]; for(let i=0;i<n;i++) pts.push(gP(rot+i*2*Math.PI/n, r)); return gPoly(pts); }
+function gArc(a0,a1,r,steps){ const pts=[]; steps=steps||24; for(let i=0;i<=steps;i++){ const a=(a0+(a1-a0)*i/steps)*D2; pts.push([r*Math.cos(a), r*Math.sin(a)]); } return pts; }
+function gTear(rb){ const cy=R-rb;
+  return `M0,${gFmt(-R)} Q${gFmt(rb*1.15)},${gFmt(cy-rb*0.6)} ${gFmt(rb)},${gFmt(cy)} A${gFmt(rb)},${gFmt(rb)} 0 1 1 ${gFmt(-rb)},${gFmt(cy)} Q${gFmt(-rb*1.15)},${gFmt(cy-rb*0.6)} 0,${gFmt(-R)} Z`; }
+function gHeart(){ const k=1.05, f=v=>gFmt(v*k);
+  return `M0,${f(33)} C0,${f(33)} ${f(-55)},${f(-18)} ${f(-55)},${f(-52)} C${f(-55)},${f(-84)} ${f(-18)},${f(-92)} 0,${f(-60)} C${f(18)},${f(-92)} ${f(55)},${f(-84)} ${f(55)},${f(-52)} C${f(55)},${f(-18)} 0,${f(33)} 0,${f(33)} Z`; }
+function spiralPts(turns, rmax){ const pts=[], steps=Math.round(turns*30); for(let i=0;i<=steps;i++){ const t=i/steps, ang=t*turns*2*Math.PI-Math.PI/2, r=rmax*t; pts.push([r*Math.cos(ang), r*Math.sin(ang)]); } return pts; }
+function wavePts(cyc, amp){ const pts=[], steps=60; for(let i=0;i<=steps;i++){ const x=-R+2*R*i/steps; pts.push([x, amp*Math.sin(cyc*2*Math.PI*i/steps)]); } return pts; }
+function zigPts(n, amp){ const pts=[]; for(let i=0;i<=n;i++) pts.push([-R+2*R*i/n, i%2?amp:-amp]); return pts; }
+function arrowD(){ const s=R*0.28, hh=R*0.72, hl=R*0.55, x0=-R, x1=R-hl, x2=R;
+  return gPoly([[x0,-s],[x1,-s],[x1,-hh],[x2,0],[x1,hh],[x1,s],[x0,s]]); }
+function doubleArrowD(){ const s=R*0.26, hh=R*0.66, hl=R*0.45;
+  return gPoly([[-R,0],[-R+hl,-hh],[-R+hl,-s],[R-hl,-s],[R-hl,-hh],[R,0],[R-hl,hh],[R-hl,s],[-R+hl,s],[-R+hl,hh]]); }
+function curvedArrowD(){ const arc=gArc(200,-15,R*0.62,24), band=gBand(arc,R*0.12);
+  const a=-15*D2, tx=R*0.62*Math.cos(a), ty=R*0.62*Math.sin(a);
+  const head=gPoly([[tx+R*0.02,ty-R*0.3],[tx+R*0.36,ty+R*0.02],[tx-R*0.06,ty+R*0.32]]);
+  return band+" "+head; }
+function bracketD(){ const t=R*0.16, H=R*0.95, arm=R*0.4, xL=-R*0.3;
+  return gPoly([[xL,-H],[xL+t,-H],[xL+t,H],[xL,H]])+" "+gPoly([[xL,-H],[xL+arm,-H],[xL+arm,-H+t],[xL,-H+t]])+" "+gPoly([[xL,H-t],[xL+arm,H-t],[xL+arm,H],[xL,H]]); }
+function curlyPts(){ const pts=[], steps=48; for(let i=0;i<=steps;i++){ const t=i/steps, y=-R*0.95+R*1.9*t, curve=R*0.25*Math.sin(t*Math.PI), tongue=R*0.22*Math.exp(-Math.pow((t-0.5)/0.07,2)); pts.push([-R*0.12-curve-tongue, y]); } return pts; }
+function leafD(){ return `M0,${gFmt(-R)} C${gFmt(R*0.7)},${gFmt(-R*0.4)} ${gFmt(R*0.7)},${gFmt(R*0.4)} 0,${gFmt(R)} C${gFmt(-R*0.7)},${gFmt(R*0.4)} ${gFmt(-R*0.7)},${gFmt(-R*0.4)} 0,${gFmt(-R)} Z`; }
+function petalD(){ return `M0,${gFmt(-R)} C${gFmt(R*0.75)},${gFmt(-R*0.3)} ${gFmt(R*0.55)},${gFmt(R*0.75)} 0,${gFmt(R)} C${gFmt(-R*0.55)},${gFmt(R*0.75)} ${gFmt(-R*0.75)},${gFmt(-R*0.3)} 0,${gFmt(-R)} Z`; }
+function burstD(n){ const pts=[], start=-Math.PI/2, inner=R*0.5; for(let i=0;i<n*2;i++){ const a=start+i*Math.PI/n; let r=i%2?inner:(i%4===0?R:R*0.8); pts.push(gP(a,r)); } return gPoly(pts); }
+function brushD(){ const N=26, top=[], bot=[]; for(let i=0;i<N;i++){ const t=i/(N-1), x=-R+2*R*t, y=R*0.18*Math.sin(t*Math.PI*1.5), ht=R*0.06+R*0.26*Math.sin(Math.PI*t); top.push([x,y-ht]); bot.push([x,y+ht]); } return gPoly(top.concat(bot.reverse())); }
+function mustacheD(){ const r=[[0,-R*0.05],[R*0.18,-R*0.32],[R*0.45,-R*0.36],[R*0.7,-R*0.2],[R*0.92,-R*0.02],[R*0.8,0],[R*0.62,R*0.12],[R*0.45,R*0.06],[R*0.25,R*0.18],[0,R*0.12]]; const left=r.slice(1,-1).reverse().map(p=>[-p[0],p[1]]); return gPoly(r.concat(left)); }
+function cloverD(){ return gCircle(0,-R*0.42,R*0.42)+" "+gCircle(-R*0.42,R*0.22,R*0.42)+" "+gCircle(R*0.42,R*0.22,R*0.42)+" "+gCircle(0,0,R*0.2)+" "+gPoly([[-R*0.06,R*0.1],[R*0.06,R*0.1],[R*0.06,R*0.95],[-R*0.06,R*0.95]]); }
+
+const SHAPES_LIB = [
+  ["line","Line",          ()=>({d:gBand([[-R,0],[R,0]],R*0.07),rule:"nonzero"})],
+  ["dot","Dot",            ()=>({d:gCircle(0,0,R*0.45),rule:"nonzero"})],
+  ["circle","Circle",      ()=>({d:gCircle(0,0,R),rule:"nonzero"})],
+  ["oval","Oval",          ()=>({d:gEllipse(0,0,R,R*0.62),rule:"nonzero"})],
+  ["ellipse","Ellipse",    ()=>({d:gEllipse(0,0,R,R*0.5),rule:"nonzero"})],
+  ["semicircle","Semi-circle", ()=>({d:`M${gFmt(-R)},0 A${gFmt(R)},${gFmt(R)} 0 0 1 ${gFmt(R)},0 Z`,rule:"nonzero"})],
+  ["quarter","Quarter-circle", ()=>({d:`M0,0 L${gFmt(R)},0 A${gFmt(R)},${gFmt(R)} 0 0 1 0,${gFmt(R)} Z`,rule:"nonzero"})],
+  ["triangle","Triangle",  ()=>({d:gPoly([[0,-R],[R*0.92,R*0.72],[-R*0.92,R*0.72]]),rule:"nonzero"})],
+  ["equilateral","Equilateral triangle", ()=>({d:gRegN(3,R,-90),rule:"nonzero"})],
+  ["isosceles","Isosceles triangle", ()=>({d:gPoly([[0,-R],[R*0.6,R*0.8],[-R*0.6,R*0.8]]),rule:"nonzero"})],
+  ["right","Right triangle",()=>({d:gPoly([[-R*0.85,-R*0.85],[-R*0.85,R*0.85],[R*0.85,R*0.85]]),rule:"nonzero"})],
+  ["scalene","Scalene triangle", ()=>({d:gPoly([[-R*0.9,R*0.7],[R*0.85,R*0.9],[R*0.25,-R*0.85]]),rule:"nonzero"})],
+  ["square","Square",      ()=>({d:gRectC(R*1.5,R*1.5),rule:"nonzero"})],
+  ["rectangle","Rectangle",()=>({d:gRectC(R*1.8,R*1.05),rule:"nonzero"})],
+  ["roundrect","Rounded rectangle", ()=>({d:gRoundRect(-R*0.9,-R*0.55,R*1.8,R*1.1,R*0.28),rule:"nonzero"})],
+  ["diamond","Diamond",    ()=>({d:gPoly([[0,-R],[R,0],[0,R],[-R,0]]),rule:"nonzero"})],
+  ["rhombus","Rhombus",    ()=>({d:gPoly([[0,-R],[R*0.6,0],[0,R],[-R*0.6,0]]),rule:"nonzero"})],
+  ["parallelogram","Parallelogram", ()=>({d:gPoly([[-R*0.5,-R*0.55],[R*0.9,-R*0.55],[R*0.5,R*0.55],[-R*0.9,R*0.55]]),rule:"nonzero"})],
+  ["trapezoid","Trapezoid",()=>({d:gPoly([[-R*0.5,-R*0.55],[R*0.5,-R*0.55],[R*0.95,R*0.55],[-R*0.95,R*0.55]]),rule:"nonzero"})],
+  ["kite","Kite",          ()=>({d:gPoly([[0,-R],[R*0.62,-R*0.1],[0,R],[-R*0.62,-R*0.1]]),rule:"nonzero"})],
+  ["pentagon","Pentagon",  ()=>({d:gRegN(5,R,-90),rule:"nonzero"})],
+  ["hexagon","Hexagon",    ()=>({d:gRegN(6,R,-90),rule:"nonzero"})],
+  ["heptagon","Heptagon",  ()=>({d:gRegN(7,R,-90),rule:"nonzero"})],
+  ["octagon","Octagon",    ()=>({d:gRegN(8,R,-90),rule:"nonzero"})],
+  ["nonagon","Nonagon",    ()=>({d:gRegN(9,R,-90),rule:"nonzero"})],
+  ["decagon","Decagon",    ()=>({d:gRegN(10,R,-90),rule:"nonzero"})],
+  ["star","Star",          (n,d)=>genStar(n||5, d||0.45)],
+  ["star5","Five-point star", ()=>genStar(5,0.45)],
+  ["star6","Six-point star",  ()=>genStar(6,0.5)],
+  ["sparkle","Sparkle star", ()=>genStar(4,0.26)],
+  ["heart","Heart",        ()=>({d:gHeart(),rule:"nonzero"})],
+  ["crescent","Crescent",  ()=>({d:gCircle(0,0,R)+" "+gCircle(R*0.5,0,R*0.82),rule:"evenodd"})],
+  ["moon","Moon",          ()=>({d:gCircle(0,0,R)+" "+gCircle(R*0.42,0,R*0.9),rule:"evenodd"})],
+  ["sunburst","Sunburst",  (n,d)=>genStar(n||14, Math.max(0.08,(d||0.4)*0.5))],
+  ["spiral","Spiral",      ()=>({d:gBand(spiralPts(4.2,R),R*0.07),rule:"nonzero"})],
+  ["swirl","Swirl",        ()=>({d:gBand(spiralPts(2.4,R*0.95),R*0.09),rule:"nonzero"})],
+  ["wave","Wave",          ()=>({d:gBand(wavePts(2,R*0.3),R*0.12),rule:"nonzero"})],
+  ["zigzag","Zigzag",      ()=>({d:gBand(zigPts(5,R*0.4),R*0.1),rule:"nonzero"})],
+  ["chevron","Chevron",    ()=>({d:gBand([[-R,-R*0.4],[0,R*0.45],[R,-R*0.4]],R*0.18),rule:"nonzero"})],
+  ["arrow","Arrow",        ()=>({d:arrowD(),rule:"nonzero"})],
+  ["darrow","Double arrow",()=>({d:doubleArrowD(),rule:"nonzero"})],
+  ["carrow","Curved arrow",()=>({d:curvedArrowD(),rule:"nonzero"})],
+  ["cross","Cross",        (n,d)=>genCross(d||0.42)],
+  ["plus","Plus sign",     (n,d)=>genCross(d?d*0.7:0.28)],
+  ["xshape","X shape",     ()=>({d:gBand([[-R*0.72,-R*0.72],[R*0.72,R*0.72]],R*0.16)+" "+gBand([[-R*0.72,R*0.72],[R*0.72,-R*0.72]],R*0.16),rule:"nonzero"})],
+  ["minus","Minus sign",   ()=>({d:gRoundRect(-R*0.8,-R*0.15,R*1.6,R*0.3,R*0.12),rule:"nonzero"})],
+  ["dash","Dash",          ()=>({d:gRoundRect(-R*0.45,-R*0.11,R*0.9,R*0.22,R*0.1),rule:"nonzero"})],
+  ["slash","Slash",        ()=>({d:gBand([[-R*0.6,R*0.8],[R*0.6,-R*0.8]],R*0.13),rule:"nonzero"})],
+  ["backslash","Backslash",()=>({d:gBand([[-R*0.6,-R*0.8],[R*0.6,R*0.8]],R*0.13),rule:"nonzero"})],
+  ["bracket","Bracket shape", ()=>({d:bracketD(),rule:"nonzero"})],
+  ["curly","Curly bracket",()=>({d:gBand(curlyPts(),R*0.08),rule:"nonzero"})],
+  ["paren","Parenthesis curve", ()=>({d:gBand(gArc(60,300,R*0.78,28),R*0.1),rule:"nonzero"})],
+  ["ring","Ring",          ()=>({d:gCircle(0,0,R)+" "+gCircle(0,0,R*0.6),rule:"evenodd"})],
+  ["donut","Donut shape",  ()=>({d:gCircle(0,0,R)+" "+gCircle(0,0,R*0.48),rule:"evenodd"})],
+  ["target","Target circle",()=>({d:gCircle(0,0,R)+" "+gCircle(0,0,R*0.66)+" "+gCircle(0,0,R*0.32),rule:"evenodd"})],
+  ["bullseye","Bullseye",  ()=>({d:[R,R*0.78,R*0.55,R*0.32,R*0.12].map(r=>gCircle(0,0,r)).join(" "),rule:"evenodd"})],
+  ["drop","Drop",          ()=>({d:gTear(R*0.78),rule:"nonzero"})],
+  ["teardrop","Teardrop",  ()=>({d:gTear(R*0.7),rule:"nonzero"})],
+  ["raindrop","Raindrop",  ()=>({d:gTear(R*0.6),rule:"nonzero"})],
+  ["leaf","Leaf",          ()=>({d:leafD(),rule:"nonzero"})],
+  ["petal","Petal",        ()=>({d:petalD(),rule:"nonzero"})],
+  ["flower","Flower",      (n,d)=>genFlower(n||6, d||0.45)],
+  ["clover","Clover",      ()=>({d:cloverD(),rule:"nonzero"})],
+  ["cloud","Cloud",        ()=>({d:gEllipse(0,R*0.12,R*0.82,R*0.4)+" "+gCircle(-R*0.45,-R*0.05,R*0.34)+" "+gCircle(0,-R*0.28,R*0.45)+" "+gCircle(R*0.45,-R*0.05,R*0.38),rule:"nonzero"})],
+  ["flame","Flame",        ()=>({d:`M0,${gFmt(R)} C${gFmt(-R*0.55)},${gFmt(R*0.4)} ${gFmt(-R*0.45)},${gFmt(-R*0.3)} ${gFmt(R*0.05)},${gFmt(-R)} C${gFmt(0)},${gFmt(-R*0.4)} ${gFmt(R*0.5)},${gFmt(-R*0.3)} ${gFmt(R*0.3)},${gFmt(R*0.2)} C${gFmt(R*0.22)},${gFmt(R*0.55)} ${gFmt(R*0.4)},${gFmt(R*0.7)} 0,${gFmt(R)} Z`,rule:"nonzero"})],
+  ["lightning","Lightning bolt", ()=>({d:gPoly([[R*0.15,-R],[-R*0.45,R*0.1],[-R*0.02,R*0.1],[-R*0.25,R],[R*0.5,-R*0.2],[R*0.08,-R*0.2]]),rule:"nonzero"})],
+  ["shield","Shield",      ()=>({d:`M0,${gFmt(-R)} L${gFmt(R*0.72)},${gFmt(-R*0.62)} L${gFmt(R*0.72)},${gFmt(R*0.1)} C${gFmt(R*0.72)},${gFmt(R*0.6)} ${gFmt(R*0.38)},${gFmt(R*0.88)} 0,${gFmt(R)} C${gFmt(-R*0.38)},${gFmt(R*0.88)} ${gFmt(-R*0.72)},${gFmt(R*0.6)} ${gFmt(-R*0.72)},${gFmt(R*0.1)} L${gFmt(-R*0.72)},${gFmt(-R*0.62)} Z`,rule:"nonzero"})],
+  ["badge","Badge",        ()=>genFlower(12,0.82)],
+  ["ribbon","Ribbon",      ()=>({d:gPoly([[-R,-R*0.32],[R,-R*0.32],[R*0.7,0],[R,R*0.32],[-R,R*0.32],[-R*0.7,0]]),rule:"nonzero"})],
+  ["banner","Banner",      ()=>({d:gPoly([[-R*0.9,-R*0.5],[R*0.9,-R*0.5],[R*0.9,R*0.4],[0,R*0.1],[-R*0.9,R*0.4]]),rule:"nonzero"})],
+  ["scroll","Scroll shape",()=>({d:gRoundRect(-R*0.6,-R*0.5,R*1.2,R,R*0.06)+" "+gCircle(-R*0.6,-R*0.5,R*0.16)+" "+gCircle(R*0.6,R*0.5,R*0.16),rule:"nonzero"})],
+  ["speech","Speech bubble",()=>({d:gRoundRect(-R*0.85,-R*0.8,R*1.7,R*1.15,R*0.3)+" "+gPoly([[-R*0.35,R*0.3],[-R*0.5,R*0.95],[-R*0.02,R*0.32]]),rule:"nonzero"})],
+  ["thought","Thought bubble",()=>({d:gEllipse(0,-R*0.18,R*0.85,R*0.58)+" "+gCircle(-R*0.4,R*0.55,R*0.16)+" "+gCircle(-R*0.62,R*0.85,R*0.09),rule:"nonzero"})],
+  ["comic","Comic burst",  ()=>({d:burstD(12),rule:"nonzero"})],
+  ["explosion","Explosion shape", ()=>({d:burstD(16),rule:"nonzero"})],
+  ["blob","Blob",          (n,d,rnd)=>genBlob(n||8, d||0.5, rnd||Math.random)],
+  ["organic","Organic blob",(n,d,rnd)=>genBlob(n||7, d||0.6, rnd||Math.random)],
+  ["splatter","Splatter",  (n,d,rnd)=>{ const b=genBlob(8,0.45,rnd||Math.random); return {d:b.d+" "+gCircle(R*0.7,-R*0.55,R*0.13)+" "+gCircle(-R*0.72,R*0.5,R*0.1)+" "+gCircle(R*0.55,R*0.7,R*0.08)+" "+gCircle(-R*0.55,-R*0.7,R*0.09),rule:"nonzero"}; }],
+  ["drip","Drip",          ()=>({d:gTear(R*0.5)+" "+gCircle(0,R*1.2,R*0.16),rule:"nonzero"})],
+  ["brush","Brush stroke", ()=>({d:brushD(),rule:"nonzero"})],
+  ["ink","Ink mark",       (n,d,rnd)=>genBlob(11,0.72,rnd||Math.random)],
+  ["paw","Paw print",      ()=>({d:gEllipse(0,R*0.4,R*0.52,R*0.44)+" "+gCircle(-R*0.52,-R*0.12,R*0.2)+" "+gCircle(-R*0.18,-R*0.45,R*0.2)+" "+gCircle(R*0.18,-R*0.45,R*0.2)+" "+gCircle(R*0.52,-R*0.12,R*0.2),rule:"nonzero"})],
+  ["footprint","Footprint",()=>({d:gEllipse(R*0.05,R*0.45,R*0.34,R*0.5)+" "+gEllipse(-R*0.05,-R*0.25,R*0.42,R*0.42)+" "+gCircle(-R*0.42,-R*0.62,R*0.1)+" "+gCircle(-R*0.18,-R*0.72,R*0.1)+" "+gCircle(R*0.08,-R*0.74,R*0.1)+" "+gCircle(R*0.32,-R*0.66,R*0.09)+" "+gCircle(R*0.5,-R*0.5,R*0.08),rule:"nonzero"})],
+  ["handprint","Handprint",()=>{ const palm=gEllipse(0,R*0.45,R*0.55,R*0.45), fx=[-R*0.46,-R*0.23,0,R*0.23,R*0.46], fl=[R*0.55,R*0.7,R*0.8,R*0.66,R*0.5]; let f=""; for(let i=0;i<5;i++) f+=" "+gRoundRect(fx[i]-R*0.1,R*0.1-fl[i],R*0.2,fl[i],R*0.1); return {d:palm+f,rule:"nonzero"}; }],
+  ["crown","Crown",        ()=>({d:gPoly([[-R,R*0.55],[-R,-R*0.2],[-R*0.55,R*0.12],[-R*0.2,-R*0.5],[0,0],[R*0.2,-R*0.5],[R*0.55,R*0.12],[R,-R*0.2],[R,R*0.55]]),rule:"nonzero"})],
+  ["mask","Mask shape",    ()=>({d:gEllipse(0,0,R,R*0.6)+" "+gEllipse(-R*0.4,-R*0.02,R*0.2,R*0.13)+" "+gEllipse(R*0.4,-R*0.02,R*0.2,R*0.13),rule:"evenodd"})],
+  ["eye","Eye shape",      ()=>({d:`M${gFmt(-R)},0 Q0,${gFmt(-R*0.62)} ${gFmt(R)},0 Q0,${gFmt(R*0.62)} ${gFmt(-R)},0 Z`+" "+gCircle(0,0,R*0.28),rule:"evenodd"})],
+  ["nose","Nose shape",    ()=>({d:`M0,${gFmt(-R*0.85)} C${gFmt(R*0.32)},${gFmt(-R*0.3)} ${gFmt(R*0.46)},${gFmt(R*0.3)} ${gFmt(R*0.22)},${gFmt(R*0.58)} C${gFmt(R*0.08)},${gFmt(R*0.72)} ${gFmt(-R*0.08)},${gFmt(R*0.72)} ${gFmt(-R*0.22)},${gFmt(R*0.58)} C${gFmt(-R*0.46)},${gFmt(R*0.3)} ${gFmt(-R*0.32)},${gFmt(-R*0.3)} 0,${gFmt(-R*0.85)} Z`,rule:"nonzero"})],
+  ["mouth","Mouth shape",  ()=>({d:`M${gFmt(-R)},${gFmt(-R*0.1)} Q0,${gFmt(R*0.7)} ${gFmt(R)},${gFmt(-R*0.1)} Q0,${gFmt(R*0.2)} ${gFmt(-R)},${gFmt(-R*0.1)} Z`,rule:"nonzero"})],
+  ["ear","Ear shape",      ()=>({d:gBand(gArc(50,310,R*0.7,28),R*0.22),rule:"nonzero"})],
+  ["hair","Hair tuft",     ()=>({d:gPoly([[-R,R*0.5],[-R,-R*0.05],[-R*0.62,R*0.12],[-R*0.45,-R*0.55],[-R*0.15,R*0.02],[0,-R*0.8],[R*0.15,R*0.02],[R*0.45,-R*0.55],[R*0.62,R*0.12],[R,-R*0.05],[R,R*0.5]]),rule:"nonzero"})],
+  ["mustache","Mustache shape", ()=>({d:mustacheD(),rule:"nonzero"})],
+  ["beard","Beard shape",  ()=>({d:`M${gFmt(-R*0.72)},${gFmt(-R*0.55)} Q0,${gFmt(-R*0.85)} ${gFmt(R*0.72)},${gFmt(-R*0.55)} L${gFmt(R*0.6)},${gFmt(R*0.15)} Q${gFmt(R*0.4)},${gFmt(R*0.9)} 0,${gFmt(R)} Q${gFmt(-R*0.4)},${gFmt(R*0.9)} ${gFmt(-R*0.6)},${gFmt(R*0.15)} Z`,rule:"nonzero"})],
+  ["bone","Bone shape",    ()=>({d:gRoundRect(-R*0.62,-R*0.18,R*1.24,R*0.36,R*0.12)+" "+gCircle(-R*0.62,-R*0.28,R*0.3)+" "+gCircle(-R*0.62,R*0.28,R*0.3)+" "+gCircle(R*0.62,-R*0.28,R*0.3)+" "+gCircle(R*0.62,R*0.28,R*0.3),rule:"nonzero"})],
+  ["capsule","Capsule",    ()=>({d:gRoundRect(-R*0.9,-R*0.4,R*1.8,R*0.8,R*0.4),rule:"nonzero"})],
+  ["pill","Pill shape",    ()=>({d:gRoundRect(-R*0.42,-R*0.9,R*0.84,R*1.8,R*0.42),rule:"nonzero"})],
+  ["cylinder","Cylinder",  ()=>({d:gRectC(R*1.1,R*1.4)+" "+gEllipse(0,-R*0.7,R*0.55,R*0.2)+" "+gEllipse(0,R*0.7,R*0.55,R*0.2),rule:"nonzero"})],
+  ["cube","Cube",          ()=>({d:gRegN(6,R,-90),rule:"nonzero"})],
+  ["cone","Cone",          ()=>({d:gPoly([[0,-R],[R*0.62,R*0.55],[-R*0.62,R*0.55]])+" "+gEllipse(0,R*0.55,R*0.62,R*0.18),rule:"nonzero"})],
+  ["sphere","Sphere",      ()=>({d:gCircle(0,0,R),rule:"nonzero"})],
+];
+
+function fillGenFamily(){
+  $("genFamily").innerHTML = '<option value="random">Random / surprise me</option>' +
+    SHAPES_LIB.map(e=>`<option value="${e[0]}">${e[1]}</option>`).join("");
+}
+fillGenFamily();
+
+function generateShape(){
+  let key = $("genFamily").value;
+  let n = parseInt($("genPoints").value, 10);
+  let depth = parseInt($("genDepth").value, 10) / 100;
+  let entry;
+  if(key === "random"){
+    entry = SHAPES_LIB[Math.floor(Math.random()*SHAPES_LIB.length)];
+    n = randInt(3, 16); depth = 0.2 + Math.random()*0.6;
+    $("genPoints").value = n; $("genPointsV").textContent = n;
+    $("genDepth").value = Math.round(depth*100); $("genDepthV").textContent = Math.round(depth*100) + "%";
+  } else {
+    entry = SHAPES_LIB.find(e=>e[0]===key) || SHAPES_LIB[2];
+  }
+  try{
+    const res = entry[2](n, depth, Math.random);
+    setVectorShape(res.d, res.rule, entry[1]);
+    S.shape = "custom"; $("shape").value = "custom"; updateUploadRow();
+    setSvgStatus("Generated: " + entry[1], false);
+    draw();
+  }catch(err){ setSvgStatus("Generator error — " + err.message, true); }
+}
+function saveGeneratedSVG(){
+  if(!lastGenerated){ setSvgStatus("Generate a shape first, then save it.", true); return; }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-160 -160 320 320"><path d="${lastGenerated.d}" fill="#1e293b" fill-rule="${lastGenerated.rule}"/></svg>`;
+  const blob = new Blob([svg], { type:"image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "drift-shape-" + Date.now() + ".svg";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  setSvgStatus("Saved SVG to your downloads.", false);
+}
+$("genBtn").addEventListener("click", generateShape);
+$("genSave").addEventListener("click", saveGeneratedSVG);
+$("genPoints").addEventListener("input", e=> $("genPointsV").textContent = e.target.value);
+$("genDepth").addEventListener("input", e=> $("genDepthV").textContent = e.target.value + "%");
+
+/* ---------- settings sheet ---------- */
+function specRow(k, v){
+  return `<div class="spec-row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+}
+function buildSheet(){
+  const sh = SHAPES[S.shape];
+  const pal = PALETTES[S.palette];
+  const bg = BACKGROUNDS[S.bg];
+  $("sheetTitle").textContent = PRESETS[$("preset").value].label + " — custom";
+  $("sheetTime").textContent = "Generated " + new Date().toLocaleString();
+  $("sheetThumb").src = cv.toDataURL("image/png");
+
+  const swatchHTML = pal.c.map(c =>
+    `<span class="swatch" style="background:${c}"></span>`).join("") +
+    `<span class="swatch-hex">${pal.c.join("  ")}</span>`;
+  const bgSwatch = `<span class="swatches"><span class="swatch" style="background:${bg.c}"></span><span class="swatch-hex">${bg.c}</span></span>`;
+
+  $("sheetBody").innerHTML = `
+    <div class="spec-section">
+      <h3>Shape &amp; color</h3>
+      ${specRow("Tile shape", sh.label)}
+      ${specRow("Polygon sides", sh.star ? sh.sides+" (star)" : sh.sides)}
+      <div class="spec-row"><span class="k">Luminance ramp</span><span class="swatches">${swatchHTML}</span></div>
+      <div class="spec-row"><span class="k">Background</span>${bgSwatch}</div>
+      ${specRow("Counter-rotate neighbours", S.counter ? "On" : "Off")}
+    </div>
+    <div class="spec-section">
+      <h3>Structure</h3>
+      ${specRow("Grid density", S.grid+" × "+S.grid+"  ("+(S.grid*S.grid)+" cells)")}
+      ${specRow("Nested rings", S.rings)}
+      ${specRow("Twist / ring", S.twist+"°")}
+      ${specRow("Tile gap", S.gap+" px")}
+      ${specRow("Edge stroke", S.edge+" px")}
+    </div>
+    <div class="spec-section">
+      <h3>Transform</h3>
+      ${specRow("Rotation", S.rot+"°")}
+      ${specRow("Scale", (S.scale/100).toFixed(2)+"×  ("+S.scale+"%)")}
+      ${specRow("Flip horizontal", S.flipH ? "On" : "Off")}
+      ${specRow("Flip vertical", S.flipV ? "On" : "Off")}
+    </div>
+    <div class="spec-section">
+      <h3>State (raw)</h3>
+      ${specRow("JSON", "")}
+      <div class="spec-row" style="display:block"><span class="v" style="font-size:11px;line-height:1.5;word-break:break-all;color:#5a5566">${JSON.stringify(exportState())}</span></div>
+    </div>`;
+}
+function openSheet(){ buildSheet(); $("overlay").classList.add("open"); $("overlay").setAttribute("aria-hidden","false"); }
+function closeSheet(){ $("overlay").classList.remove("open"); $("overlay").setAttribute("aria-hidden","true"); }
+
+$("printBtn").addEventListener("click", openSheet);
+$("closeSheet").addEventListener("click", closeSheet);
+$("doPrint").addEventListener("click", ()=> window.print());
+$("overlay").addEventListener("click", e=>{ if(e.target === $("overlay")) closeSheet(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeSheet(); });
+
+/* ---------- boot ---------- */
+loadPreset("turbines");
+</script>
+</body>
+</html>
